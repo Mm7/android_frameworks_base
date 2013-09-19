@@ -241,7 +241,7 @@ public class PhoneStatusBar extends BaseStatusBar {
     LinearLayout mSystemIconArea;
 
     // layout for center clock
-    LinearLayout mCenterClockLayout;
+    private LinearLayout mCenterClockLayout;
     // the icons themselves
     IconMerger mNotificationIcons;
     // [+>
@@ -366,7 +366,7 @@ public class PhoneStatusBar extends BaseStatusBar {
     CustomTheme mCurrentTheme;
     private boolean mRecreating = false;
 
-    private boolean mBrightnessControl = true;
+    private boolean mBrightnessControl;
     private float mScreenWidth;
     private int mMinBrightness;
     int mLinger;
@@ -486,7 +486,7 @@ public class PhoneStatusBar extends BaseStatusBar {
         lpScrollView.bottomMargin = mNotificationShortcutsToggle ? mShortcutsDrawerMargin : 0;
         mScrollView.setLayoutParams(lpScrollView);
 
-        if (!mShowCarrierInPanel) return;
+        if (!mShowCarrierInPanel || mCarrierAndWifiView == null) return;
         if (forceHide) {
             lpCarrierLabel.bottomMargin = mNotificationShortcutsToggle ? mShortcutsSpacingHeight : 0;
         } else {
@@ -498,7 +498,7 @@ public class PhoneStatusBar extends BaseStatusBar {
     private void toggleCarrierAndWifiLabelVisibility() {
         mShowCarrierInPanel = !mNotificationShortcutsHideCarrier;
         updateCarrierMargin(mNotificationShortcutsHideCarrier);
-        mCarrierAndWifiView.setVisibility(mShowCarrierInPanel ? View.VISIBLE : View.INVISIBLE);
+        mCarrierAndWifiView.setVisibility(mShowCarrierInPanel ? View.VISIBLE : View.GONE);
     }
 
     private void cleanupRibbon() {
@@ -781,7 +781,7 @@ public class PhoneStatusBar extends BaseStatusBar {
         if (DEBUG) Slog.v(TAG, "carrierlabel=" + mCarrierLabel + " show=" + mShowCarrierInPanel);
         if (mShowCarrierInPanel) {
             lpCarrierLabel = (FrameLayout.LayoutParams) mCarrierAndWifiView.getLayoutParams();
-            mCarrierLabel.setVisibility((mCarrierAndWifiViewVisible && !mNotificationShortcutsHideCarrier) ? View.VISIBLE : View.INVISIBLE);
+            mCarrierLabel.setVisibility((mCarrierAndWifiViewVisible && !mNotificationShortcutsHideCarrier) ? View.VISIBLE : View.GONE);
             if (mNotificationShortcutsHideCarrier)
                 mShowCarrierInPanel = false;
             // for mobile devices, we always show mobile connection info here (SPN/PLMN)
@@ -955,7 +955,6 @@ public class PhoneStatusBar extends BaseStatusBar {
         // listen for USER_SETUP_COMPLETE setting (per-user)
         resetUserSetupObserver();
 
-        mVelocityTracker = VelocityTracker.obtain();
         updateRibbonTargets();
         return mStatusBarView;
     }
@@ -1661,7 +1660,7 @@ public class PhoneStatusBar extends BaseStatusBar {
         if (force || mCarrierAndWifiViewVisible != makeVisible) {
             mCarrierAndWifiViewVisible = makeVisible;
             if (DEBUG) {
-                Slog.d(TAG, "making carrier label " + (makeVisible?"visible":"invisible"));
+                Slog.d(TAG, "making carrier label " + (makeVisible?"visible":"gone"));
             }
             mCarrierAndWifiView.animate().cancel();
             if (makeVisible) {
@@ -1676,14 +1675,14 @@ public class PhoneStatusBar extends BaseStatusBar {
                     @Override
                     public void onAnimationEnd(Animator animation) {
                         if (!mCarrierAndWifiViewVisible) { // race
-                            mCarrierAndWifiView.setVisibility(View.INVISIBLE);
                             mCarrierAndWifiView.setAlpha(0f);
+                            mCarrierAndWifiView.setVisibility(View.GONE);
                        }
                    }
                })
                .start();
-       }
-   }
+        }
+    }
     protected void updateNotificationShortcutsVisibility(boolean vis, boolean instant) {
         if ((!mNotificationShortcutsToggle && mNotificationShortcutsVisible == vis) ||
                 mStatusBarWindow.findViewById(R.id.custom_notification_scrollview) == null) {
@@ -2054,6 +2053,18 @@ public class PhoneStatusBar extends BaseStatusBar {
         });
         return a;
     }
+
+    public Animator setVisibilityOnStart(
+            final Animator a, final View v, final int vis) {
+        a.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationStart(Animator animation) {
+                v.setVisibility(vis);
+            }
+        });
+        return a;
+    }
+
     public Animator interpolator(TimeInterpolator ti, Animator a) {
         a.setInterpolator(ti);
         return a;
@@ -2118,13 +2129,13 @@ public class PhoneStatusBar extends BaseStatusBar {
                         .setDuration(FLIP_DURATION_IN)
                     )));
         if (mRibbonView != null && mHasQuickAccessSettings) {
-            mRibbonView.setVisibility(View.VISIBLE);
             mRibbonViewAnim = start(
-                    startDelay(FLIP_DURATION_OUT * zeroOutDelays,
-                            interpolator(mDecelerateInterpolator,
-                                    ObjectAnimator.ofFloat(mRibbonView, View.SCALE_X, 1f)
-                                    .setDuration(FLIP_DURATION_IN)
-                                    )));
+            startDelay(FLIP_DURATION_OUT * zeroOutDelays,
+                setVisibilityOnStart(
+                interpolator(mDecelerateInterpolator,
+                    ObjectAnimator.ofFloat(mRibbonView, View.SCALE_X, 1f)
+                        .setDuration(FLIP_DURATION_IN)),
+                mRibbonView, View.VISIBLE)));
         }
         mFlipSettingsViewAnim = start(
             setVisibilityWhenDone(
@@ -2628,17 +2639,15 @@ public class PhoneStatusBar extends BaseStatusBar {
         }
     }
 
-    private void brightnessControl(MotionEvent event)
-    {
-        if (mBrightnessControl)
-        {
+    private void brightnessControl(MotionEvent event) {
             final int action = event.getAction();
-            final int x = (int)event.getRawX();
-            final int y = (int)event.getRawY();
+            final int x = (int) event.getRawX();
+            final int y = (int) event.getRawY();
             if (action == MotionEvent.ACTION_DOWN) {
                 mLinger = 0;
                 mInitialTouchX = x;
                 mInitialTouchY = y;
+                mVelocityTracker = VelocityTracker.obtain();
                 mHandler.removeCallbacks(mLongPressBrightnessChange);
                 if ((y) < mNotificationHeaderHeight) {
                     mHandler.postDelayed(mLongPressBrightnessChange,
@@ -2659,13 +2668,12 @@ public class PhoneStatusBar extends BaseStatusBar {
                     int touchSlop = ViewConfiguration.get(mContext).getScaledTouchSlop();
                     if (Math.abs(x - mInitialTouchX) > touchSlop ||
                             Math.abs(y - mInitialTouchY) > touchSlop) {
-                        mHandler.removeCallbacks(mLongPressBrightnessChange);
-                    }
-                } else {
                     mHandler.removeCallbacks(mLongPressBrightnessChange);
                 }
             } else if (action == MotionEvent.ACTION_UP
                     || action == MotionEvent.ACTION_CANCEL) {
+                mVelocityTracker.recycle();
+                mVelocityTracker = null;
                 mHandler.removeCallbacks(mLongPressBrightnessChange);
                 mLinger = 0;
             }
@@ -2712,6 +2720,13 @@ public class PhoneStatusBar extends BaseStatusBar {
             showCling();
         } else {
             hideCling();
+        }
+
+        if (mBrightnessControl) {
+            brightnessControl(event);
+            if ((mDisabled & StatusBarManager.DISABLE_EXPAND) != 0) {
+                return true;
+            }
         }
 
         return false;

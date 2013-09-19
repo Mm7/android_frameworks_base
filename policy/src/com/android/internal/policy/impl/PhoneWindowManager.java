@@ -342,6 +342,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     int mDeviceHardwareKeys;
     boolean mHasMenuKeyEnabled;
 
+    int mCurrentUser = 0;
+
     // The last window we were told about in focusChanged.
     WindowState mFocusedWindow;
     IApplicationToken mFocusedApp;
@@ -537,6 +539,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     private boolean mVolumeWakeScreen;
     private boolean mVolBtnMusicControls;
     private boolean mIsLongPress;
+    private boolean mAnimatingWindows;
+    private boolean mNeedUpdateSettings;
     private KeyguardManager mKeyguardManager;
 
 	// HW overlays state
@@ -1465,8 +1469,14 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     private void update(boolean updateUi) {
         if (updateUi) updateHybridLayout();
 
-        updateSettings();
-        updateRotation(false);
+        // A settings update potentially means triggering a configuration change,
+        // which we don't want to do during a window animation
+        if (mAnimatingWindows) {
+            mNeedUpdateSettings = true;
+        } else {
+            updateSettings();
+            updateRotation(false);
+        }
 
         if (updateUi) closeApplication("com.android.systemui");
     }
@@ -2321,6 +2331,12 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         } else {
             anim[0] = anim[1] = 0;
         }
+    }
+
+    @Override
+    public void selectDisplayMetricsUpdateAnimationLw(int anim[]) {
+        anim[0] = R.anim.shrink_fade_out_center;
+        anim[1] = R.anim.grow_fade_in_center;
     }
 
     @Override
@@ -3267,8 +3283,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     }
                 } else {
                     // Landscape screen; nav bar goes to the right.
-                    int left = displayWidth - overscanRight
-                            - mNavigationBarWidthForRotation[displayRotation];
+                    int left = displayWidth - overscanRight - navWidth;
                     mTmpNavigationFrame.set(left, 0, displayWidth - overscanRight, displayHeight);
                     mStableRight = mStableFullscreenRight = mTmpNavigationFrame.left;
                     if (navVisible) {
@@ -5456,8 +5471,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         ActivityInfo ai = null;
         ResolveInfo info = mContext.getPackageManager().resolveActivityAsUser(
                 intent,
-                PackageManager.MATCH_DEFAULT_ONLY,
-                UserHandle.USER_CURRENT);
+                PackageManager.MATCH_DEFAULT_ONLY | PackageManager.GET_META_DATA,
+                mCurrentUser);
         if (info != null) {
             ai = info.activityInfo;
         }
@@ -5698,6 +5713,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             }
         }
         setLastInputMethodWindowLw(null, null);
+        mCurrentUser = newUserId;
     }
 
     @Override
@@ -5725,6 +5741,21 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             return (windowType == WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG);
         }
         return true;
+    }
+
+    @Override
+    public void windowAnimationStarted() {
+        mAnimatingWindows = true;
+    }
+
+    @Override
+    public void windowAnimationFinished() {
+        mAnimatingWindows = false;
+        if (mNeedUpdateSettings) {
+            updateSettings();
+            updateRotation(false);
+            mNeedUpdateSettings = false;
+        }
     }
 
     @Override
