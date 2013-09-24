@@ -19,7 +19,6 @@ package android.provider;
 
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
-import android.app.ActivityManagerNative;
 import android.app.SearchManager;
 import android.app.WallpaperManager;
 import android.content.ComponentName;
@@ -39,7 +38,6 @@ import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.BatteryManager;
-import android.os.Binder;
 import android.os.Bundle;
 import android.os.DropBoxManager;
 import android.os.IBinder;
@@ -1896,7 +1894,7 @@ public final class Settings {
          */
         public static final String AUTO_BRIGHTNESS_BACKLIGHT = "auto_brightness_backlight";
 
-		/**
+        /**
          * Touch Key Light Duration
          *
          * @hide
@@ -1987,6 +1985,12 @@ public final class Settings {
         public static final int VOLUME_OVERLAY_EXPANDED = 2;
         /** @hide */
         public static final int VOLUME_OVERLAY_NONE = 3;
+
+        /**
+         * Lock Volume Keys, Whether to lock ringer volume changes in silent mode.
+         * @hide
+         */
+        public static final String LOCK_VOLUME_KEYS = "lock_volume_keys";
 
         /**
          * Volume Adjust Sounds Enable, This is the noise made when using volume hard buttons
@@ -6879,7 +6883,7 @@ public final class Settings {
          * Whether newly installed apps should run with privacy guard by default
          * @hide
          */
-        public static final String PRIVACY_GUARD_DEFAULT = "privacy_guard_default";
+         public static final String PRIVACY_GUARD_DEFAULT = "privacy_guard_default";
 
         /**
          * This are the settings to be backed up.
@@ -6951,13 +6955,6 @@ public final class Settings {
          * @hide
          */
         public static final boolean isLocationProviderEnabledForUser(ContentResolver cr, String provider, int userId) {
-            try {
-                if (ActivityManagerNative.getDefault().isPrivacyGuardEnabledForProcess(Binder.getCallingPid())) {
-                    return false;
-                }
-            } catch (RemoteException e) {
-                // ignore
-            }
             String allowedProviders = Settings.Secure.getStringForUser(cr,
                     LOCATION_PROVIDERS_ALLOWED, userId);
             return TextUtils.delimitedStringContains(allowedProviders, ',', provider);

@@ -231,8 +231,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 KeyEvent.KEYCODE_CALCULATOR, Intent.CATEGORY_APP_CALCULATOR);
     }
 
-    private final DeviceKeyHandler mDeviceKeyHandler;
-
     /**
      * Lock protecting internal state.  Must not call out into window
      * manager with lock held.  (This lock will be acquired in places
@@ -692,10 +690,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
     }
     MyOrientationListener mOrientationListener;
-
-    public PhoneWindowManager(IDeviceHandler device) {
-        mDeviceKeyHandler = (device != null) ? device.getDeviceKeyHandler() : null;
-    }
 
     IStatusBarService getStatusBarService() {
         synchronized (mServiceAquireLock) {
@@ -2458,18 +2452,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
         if (keyCode == KeyEvent.KEYCODE_BACK && !down) {
             mHandler.removeCallbacks(mKillTask);
-        }
-
-        // Specific device key handling
-        if (mDeviceKeyHandler != null) {
-            try {
-                // The device only should consume known keys.
-                if (mDeviceKeyHandler.handleKeyEvent(event)) {
-                    return -1;
-                }
-            } catch (Exception e) {
-                Slog.w(TAG, "Could not dispatch event to device key handler", e);
-            }
         }
 
         // First we always handle the home key here, so applications
@@ -5265,13 +5247,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     static String currentPackageName;
     public void setPackageName(String pkgName) {
         if (pkgName == null) {
-            pkgName = "U.WOT.MATE";
+            pkgName = "unknown";
         }
         this.currentPackageName = pkgName;
     }
-
-    // debugging 'Android is upgrading...' ProgressDialog
-    final boolean DEBUG_BOOTMSG = false;
 
     // this method is called to create, if needed, and update boot ProgressDialog
     // see @link frameworks/base/services/java/com/android/server/pm/
@@ -5300,20 +5279,17 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 if (!mBootMsgDialog.isShowing())
                     mBootMsgDialog.show();
                 mBootMsgDialog.setMessage(msg);
-                if (DEBUG_BOOTMSG) Log.d(TAG, "********** showBootMessage(" + msg +", " + always + ") updated ***********");
                 if (currentPackageName != null) {
                     mBootMsgDialog.setTitle(msg);
                     mBootMsgDialog.setMessage(currentPackageName);
-                    if (DEBUG_BOOTMSG) Log.d(TAG, "setTitle: " + msg + " setMessage: " + currentPackageName);
                 } else {
-                    if (DEBUG_BOOTMSG) Log.d(TAG, "failed; CURRENT_PACKAGE_NAME == null");
+                    Log.d(TAG, "failed; CURRENT_PACKAGE_NAME == null");
                 }
                 if (msg.equals(mContext.getResources().getString(R.string.android_upgrading_starting_apps))) {
-                    if (DEBUG_BOOTMSG) Log.d(TAG, "starting apps so we use normal layout");
                     mBootMsgDialog.setTitle(R.string.android_upgrading_title);
                     mBootMsgDialog.setMessage(mContext.getResources().getString(R.string.android_upgrading_starting_apps));
                 } else {
-                    if (DEBUG_BOOTMSG) Log.d(TAG, "not starting apps");
+                    Log.d(TAG, "not starting apps");
                 }
             }
         });

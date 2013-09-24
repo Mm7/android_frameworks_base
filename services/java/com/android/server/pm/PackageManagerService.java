@@ -50,6 +50,7 @@ import org.xmlpull.v1.XmlSerializer;
 
 import android.app.ActivityManager;
 import android.app.ActivityManagerNative;
+import android.app.AppOpsManager;
 import android.app.IActivityManager;
 import android.app.admin.IDevicePolicyManager;
 import android.app.backup.IBackupManager;
@@ -435,6 +436,7 @@ public class PackageManagerService extends IPackageManager.Stub {
     final ResolveInfo mResolveInfo = new ResolveInfo();
     ComponentName mResolveComponentName;
     PackageParser.Package mPlatformPackage;
+    private AppOpsManager mAppOps;
 
     IAssetRedirectionManager mAssetRedirectionManager;
 
@@ -534,6 +536,9 @@ public class PackageManagerService extends IPackageManager.Stub {
 
     // Stores a list of users whose package restrictions file needs to be updated
     private HashSet<Integer> mDirtyUsers = new HashSet<Integer>();
+
+    WindowManager mWindowManager;
+    private final WindowManagerPolicy mPolicy;
 
     final private DefaultContainerConnection mDefContainerConn =
             new DefaultContainerConnection();
@@ -869,6 +874,18 @@ public class PackageManagerService extends IPackageManager.Stub {
                                 deleteOld = true;
                             }
 
+                            if (!update && !isSystemApp(res.pkg.applicationInfo)) {
+                                boolean privacyGuard = Secure.getIntForUser(
+                                        mContext.getContentResolver(),
+                                        android.provider.Settings.Secure.PRIVACY_GUARD_DEFAULT,
+                                        0, UserHandle.USER_CURRENT) == 1;
+                                if (privacyGuard) {
+                                    mAppOps.setPrivacyGuardSettingForPackage(
+                                            res.pkg.applicationInfo.uid,
+                                            res.pkg.applicationInfo.packageName, true);
+                                }
+                            }
+
                             // Log current value of "unknown sources" setting
                             EventLog.writeEvent(EventLogTags.UNKNOWN_SOURCES_ENABLED,
                                 getUnknownSourcesSettings());
@@ -1086,6 +1103,7 @@ public class PackageManagerService extends IPackageManager.Stub {
 
         mPm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
 
+        mAppOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
         String separateProcesses = SystemProperties.get("debug.separate_processes");
         if (separateProcesses != null && separateProcesses.length() > 0) {
             if ("*".equals(separateProcesses)) {
@@ -1105,8 +1123,9 @@ public class PackageManagerService extends IPackageManager.Stub {
 
         mInstaller = installer;
 
-        WindowManager wm = (WindowManager)context.getSystemService(Context.WINDOW_SERVICE);
-        Display d = wm.getDefaultDisplay();
+        mWindowManager = (WindowManager)context.getSystemService(Context.WINDOW_SERVICE);
+        Display d = mWindowManager.getDefaultDisplay();
+        mPolicy = new PhoneWindowManager();
         d.getMetrics(mMetrics);
 
         synchronized (mInstallLock) {
@@ -3677,12 +3696,21 @@ public class PackageManagerService extends IPackageManager.Stub {
             pkgs = mDeferredDexOpt;
             mDeferredDexOpt = null;
         }
-        if (pkgs != null) {
+         if (pkgs != null) {
             int i = 0;
             for (PackageParser.Package pkg : pkgs) {
-                if (!isFirstBoot()) {
+                PackageParser.Package p = pkg;
+                 if (!isFirstBoot()) {
                     i++;
                     try {
+                        // give the packagename to the PhoneWindowManager
+                        ApplicationInfo ai;
+                        try {
+                            ai = mContext.getPackageManager().getApplicationInfo(p.packageName, 0);
+                        } catch (PackageManager.NameNotFoundException e) {
+                            ai = null;
+                        }
+                        mPolicy.setPackageName((String) (ai != null ? mContext.getPackageManager().getApplicationLabel(ai) : p.packageName));
                         ActivityManagerNative.getDefault().showBootMessage(
                                 mContext.getResources().getString(
                                         com.android.internal.R.string.android_upgrading_apk,
@@ -3690,7 +3718,6 @@ public class PackageManagerService extends IPackageManager.Stub {
                     } catch (RemoteException e) {
                     }
                 }
-                PackageParser.Package p = pkg;
                 synchronized (mInstallLock) {
                     if (!p.mDidDexOpt) {
                         performDexOptLI(p, false, false, true);
@@ -9182,17 +9209,12 @@ public class PackageManagerService extends IPackageManager.Stub {
                 // its data.  If this is a system app, we only allow this to happen if
                 // they have set the special DELETE_SYSTEM_APP which requests different
                 // semantics than normal for uninstalling system apps.
-                boolean privacyGuard = android.provider.Settings.Secure.getIntForUser(
-                        mContext.getContentResolver(),
-                        android.provider.Settings.Secure.PRIVACY_GUARD_DEFAULT,
-                        0, user.getIdentifier()) == 1;
                 if (DEBUG_REMOVE) Slog.d(TAG, "Only deleting for single user");
                 ps.setUserState(user.getIdentifier(),
                         COMPONENT_ENABLED_STATE_DEFAULT,
                         false, //installed
                         true,  //stopped
                         true,  //notLaunched
-                        privacyGuard,
                         false, // hwui disabled
                         null, null, null);
                 if (!isSystemApp(ps)) {
@@ -9800,60 +9822,6 @@ public class PackageManagerService extends IPackageManager.Stub {
         }
 
         return num;
-    }
-
-    @Override
-    public void setPrivacyGuardSetting(String appPackageName,
-            boolean enabled, int userId) {
-        if (!sUserManager.exists(userId)) return;
-        setPrivacyGuard(appPackageName, enabled, userId);
-    }
-
-    @Override
-    public boolean getPrivacyGuardSetting(String packageName, int userId) {
-        if (!sUserManager.exists(userId)) return false;
-        int uid = Binder.getCallingUid();
-        enforceCrossUserPermission(uid, userId, false, "get privacy guard");
-        // reader
-        synchronized (mPackages) {
-            return mSettings.getPrivacyGuardSettingLPr(packageName, userId);
-        }
-    }
-
-    private void setPrivacyGuard(final String packageName,
-            final boolean enabled, final int userId) {
-        PackageSetting pkgSetting;
-        final int uid = Binder.getCallingUid();
-        final int permission = mContext.checkCallingPermission(
-                android.Manifest.permission.CHANGE_PRIVACY_GUARD_STATE);
-        final boolean allowedByPermission = (permission == PackageManager.PERMISSION_GRANTED);
-        enforceCrossUserPermission(uid, userId, false, "set privacy guard");
-
-        synchronized (mPackages) {
-            pkgSetting = mSettings.mPackages.get(packageName);
-            if (pkgSetting == null) {
-                throw new IllegalArgumentException(
-                        "Unknown package: " + packageName);
-            }
-            // Allow root and verify that userId is not being specified by a different user
-            if (!allowedByPermission && !UserHandle.isSameApp(uid, pkgSetting.appId)) {
-                throw new SecurityException(
-                        "Permission Denial: attempt to change privacy guard state from pid="
-                        + Binder.getCallingPid()
-                        + ", uid=" + uid + ", package uid=" + pkgSetting.appId);
-            }
-            if (pkgSetting.isPrivacyGuard(userId) == enabled) {
-                // Nothing to do
-                return;
-            }
-            pkgSetting.setPrivacyGuard(enabled, userId);
-            mSettings.writePackageRestrictionsLPr(userId);
-        }
-        try {
-            ActivityManagerNative.getDefault().forceStopPackage(packageName, userId);
-        } catch (RemoteException e) {
-            //nothing
-        }
     }
 
     @Override
