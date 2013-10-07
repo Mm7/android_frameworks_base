@@ -2662,22 +2662,6 @@ public final class Settings {
         public static final String LOCKSCREEN_MUSIC_CONTROLS = "lockscreen_music_controls";
 
         /**
-         * @deprecated Use {@link android.provider.Settings.Global#LOW_BATTERY_SOUND}
-         * instead
-         * @hide
-         */
-        @Deprecated
-        public static final String LOW_BATTERY_SOUND = Global.LOW_BATTERY_SOUND;
-
-        /**
-         * @deprecated Use {@link android.provider.Settings.Global#DESK_DOCK_SOUND}
-         * instead
-         * @hide
-         */
-        @Deprecated
-        public static final String DESK_DOCK_SOUND = Global.DESK_DOCK_SOUND;
-
-        /**
          * Whether to display notifications on screen when screen is off
          * @hide
          */
@@ -2731,6 +2715,34 @@ public final class Settings {
          * @hide
          */
         public static final String ACTIVE_DISPLAY_SHOW_DATE = "active_display_show_date";
+
+        /**
+         * Whether to invert the colors when in bright light
+         * @hide
+         */
+        public static final String ACTIVE_DISPLAY_SUNLIGHT_MODE = "active_display_sunlight_mode";
+
+        /**
+         * Timeout of the display when there is no user interaction
+         * @hide
+         */
+        public static final String ACTIVE_DISPLAY_TIMEOUT = "active_display_timeout";
+
+        /**
+         * @deprecated Use {@link android.provider.Settings.Global#LOW_BATTERY_SOUND}
+         * instead
+         * @hide
+         */
+        @Deprecated
+        public static final String LOW_BATTERY_SOUND = Global.LOW_BATTERY_SOUND;
+
+        /**
+         * @deprecated Use {@link android.provider.Settings.Global#DESK_DOCK_SOUND}
+         * instead
+         * @hide
+         */
+        @Deprecated
+        public static final String DESK_DOCK_SOUND = Global.DESK_DOCK_SOUND;
 
         /**
          * @deprecated Use {@link android.provider.Settings.Global#DESK_UNDOCK_SOUND}
@@ -5255,35 +5267,22 @@ public final class Settings {
         public static final String NOTIFICATION_CONVERT_SOUND_TO_VIBRATION = "convert_sound_to_vibration";
 
         /**
-         * Whether to enable notification shortcuts (toggle)
-         *
-         * @hide
-         */
-        public static final String NOTIFICATION_SHORTCUTS_TOGGLE = "pref_notification_shortcuts_toggle";
+        * Stores values for notification shortcut targets
+        * @hide
+        */
+        public static final String NOTIFICATION_SHORTCUTS_CONFIG = "notification_shortcuts_config";
 
         /**
-         * Stores the number of notification shortcuts to display settings for
-         * @hide
-         */
-        public static final String NOTIFICATION_SHORTCUTS_QUANTITY = "pref_notification_shortcuts_quantity";
-
-        /**
-         * Stores values for notification shortcut targets
-         * @hide
-         */
-        public static final String NOTIFICATION_SHORTCUTS_TARGETS = "notification_shortcuts_targets";
-
-        /**
-         * Stores the value for notification shortcuts icon color
-         * @hide
-         */
+        * Stores the value for notification shortcuts icon color
+        * @hide
+        */
         public static final String NOTIFICATION_SHORTCUTS_COLOR = "notification_shortcuts_color";
 
         /**
-         * Whether to colorize the default application icons
-         * @hide
-         */
-        public static final String NOTIFICATION_SHORTCUTS_COLORIZE_TOGGLE = "notification_shortcuts_colorize_toggle";
+        * Whether to colorize the default application icons
+        * @hide
+        */
+        public static final String NOTIFICATION_SHORTCUTS_COLOR_MODE = "notification_shortcuts_color_mode";
 
         /**
          * Whether to colorize the default application icons
