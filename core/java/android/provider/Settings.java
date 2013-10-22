@@ -61,6 +61,7 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 
 /**
  * The Settings provider contains global system-level device preferences.
@@ -472,6 +473,19 @@ public final class Settings {
     @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
     public static final String ACTION_APPLICATION_DETAILS_SETTINGS =
             "android.settings.APPLICATION_DETAILS_SETTINGS";
+
+    /**
+     * @hide
+     * Activity Action: Show the "app ops" details screen.
+     * <p>
+     * Input: The Intent's data URI specifies the application package name
+     * to be shown, with the "package" scheme.  That is "package:com.my.app".
+     * <p>
+     * Output: Nothing.
+     */
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String ACTION_APP_OPS_DETAILS_SETTINGS =
+            "android.settings.APP_OPS_DETAILS_SETTINGS";
 
     /**
      * @hide
@@ -969,6 +983,7 @@ public final class Settings {
             MOVED_TO_SECURE.add(Secure.LOCK_SHOW_ERROR_PATH);
             MOVED_TO_SECURE.add(Secure.LOCK_DOTS_VISIBLE);
             MOVED_TO_SECURE.add(Secure.LOCK_PATTERN_TACTILE_FEEDBACK_ENABLED);
+            MOVED_TO_SECURE.add(Secure.LOCK_NUMPAD_RANDOM);
             MOVED_TO_SECURE.add(Secure.LOCKSCREEN_UNSECURE_USED);
             MOVED_TO_SECURE.add(Secure.LOGGING_ID);
             MOVED_TO_SECURE.add(Secure.PARENTAL_CONTROL_ENABLED);
@@ -3182,6 +3197,15 @@ public final class Settings {
          */
         public static final String STATUS_BAR_TRAFFIC = "status_bar_traffic";
 
+        /**
+         * @hide
+         */
+        public static final String WAKELOCK_BLOCKING_ENABLED = "wakelock_blocking_enabled";
+
+        /**
+         * @hide
+         */
+        public static final String WAKELOCK_BLOCKING_LIST = "wakelock_blocking_list";
 
          /**
          * Whether to control brightness from status bar
@@ -3377,6 +3401,12 @@ public final class Settings {
         public static final String FOREGROUND_APP = "foreground_app";
 
         /**
+         * Pie enabled, should default to 1 (Pie is enabled)
+         * @hide
+         */
+        public static final String PIE_ENABLED = "pie_enabled";
+
+        /**
          * Pie menu, should default to 1 (yes, show)
          * @hide
          */
@@ -3467,6 +3497,26 @@ public final class Settings {
          * @hide
          */
         public static final String PIE_SIZE = "pie_size";
+
+        /**
+         * @hide
+         */
+        public static final String START_SCREEN_STATE_SERVICE = "start_screen_state_service";
+
+        /**
+         * @hide
+         */
+        public static final String SCREEN_STATE_TWOG = "screen_state_twog";
+
+        /**
+         * @hide
+         */
+        public static final String SCREEN_STATE_GPS = "screen_state_gps";
+
+        /**
+         * @hide
+         */
+        public static final String SCREEN_STATE_MOBILE_DATA = "screen_state_mobile_data";
 
         /**
          * User Interface State
@@ -4968,6 +5018,14 @@ public final class Settings {
         public static final String POWER_UI_LOW_BATTERY_WARNING_POLICY = "power_ui_low_battery_warning_policy";
 
         /**
+         * Allows to disable Camera widget in locskcreen
+         * 0 = hide camera
+         * 1 = show camera - default
+         * @hide
+         */
+        public static final String LOCKSCREEN_CAMERA_WIDGET_SHOW = "lockscreen_camera_widget_show";
+
+        /**
          * Settings to backup. This is here so that it's in the same place as the settings
          * keys and easy to update.
          *
@@ -6155,6 +6213,14 @@ public final class Settings {
          */
          public static final String LOCKSCREEN_UNSECURE_USED = "lockscreen_unsecure_used";
 
+        /**
+         * Whether the NumKeyPad will change the orders of numbers
+         * in a PIN locked lockscreen
+         * 0 = off | 1 = always | 2 = only on request
+         * @hide
+         */
+        public static final String LOCK_NUMPAD_RANDOM = "lock_numpad_random";
+
          /*
          * Stores value for lock before unlock
          * @hide
@@ -7001,7 +7067,12 @@ public final class Settings {
         public static final String SCREENSAVER_DEFAULT_COMPONENT = "screensaver_default_component";
 
         /**
+         * Whether privacy guard notification should show.
+         * @hide
+         */
+         public static final String PRIVACY_GUARD_NOTIFICATION = "privacy_guard_notification";
 
+        /**
          * Name of a package that the current user has explicitly allowed to see all of that
          * user's notifications.
          *
@@ -7076,7 +7147,8 @@ public final class Settings {
             DIALPAD_AUTOCOMPLETE,
             LOCK_SCREEN_OWNER_INFO,
             LOCK_SCREEN_OWNER_INFO_ENABLED,
-            PRIVACY_GUARD_DEFAULT
+            PRIVACY_GUARD_DEFAULT,
+            PRIVACY_GUARD_NOTIFICATION
         };
 
         /**
@@ -8227,7 +8299,7 @@ public final class Settings {
          * @hide
          */
         public static final String getBluetoothHeadsetPriorityKey(String address) {
-            return BLUETOOTH_HEADSET_PRIORITY_PREFIX + address.toUpperCase();
+            return BLUETOOTH_HEADSET_PRIORITY_PREFIX + address.toUpperCase(Locale.ROOT);
         }
 
         /**
@@ -8235,7 +8307,7 @@ public final class Settings {
          * @hide
          */
         public static final String getBluetoothA2dpSinkPriorityKey(String address) {
-            return BLUETOOTH_A2DP_SINK_PRIORITY_PREFIX + address.toUpperCase();
+            return BLUETOOTH_A2DP_SINK_PRIORITY_PREFIX + address.toUpperCase(Locale.ROOT);
         }
 
         /**
@@ -8243,7 +8315,7 @@ public final class Settings {
          * @hide
          */
         public static final String getBluetoothInputDevicePriorityKey(String address) {
-            return BLUETOOTH_INPUT_DEVICE_PRIORITY_PREFIX + address.toUpperCase();
+            return BLUETOOTH_INPUT_DEVICE_PRIORITY_PREFIX + address.toUpperCase(Locale.ROOT);
         }
 
         /**
@@ -8335,6 +8407,11 @@ public final class Settings {
          * Control whether the process CPU usage meter should be shown.
          */
         public static final String SHOW_PROCESSES = "show_processes";
+
+        /**
+         * Control whether the process CPU info meter should be shown.
+         */
+        public static final String SHOW_CPU = "show_cpu";
 
         /**
          * If 1, the activity manager will aggressively finish activities and
